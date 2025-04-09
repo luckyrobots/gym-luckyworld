@@ -1,6 +1,6 @@
 exclude: ^(example.py)
 default_language_version:
-    python: python3.10
+    python: python3.9
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -31,3 +31,8 @@ repos:
       - id: poetry-lock
         args:
           - "--no-update"
+  - repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+    -   id: black
+        files: '\.py$'
