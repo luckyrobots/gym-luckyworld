@@ -1,9 +1,10 @@
 import imageio
-import gymnasium as gym
 import numpy as np
-import gym_aloha
+import gym_luckyworld
+import gymnasium as gym
 
-env = gym.make("gym_aloha/AlohaInsertion-v0")
+
+env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")
 observation, info = env.reset()
 frames = []
 
