@@ -1,22 +1,22 @@
-# gym-aloha
+# gym-luckyworld
 
-A gym environment for ALOHA
+A gym environment for the Lucky World simulator
 
 <img src="http://remicadene.com/assets/gif/aloha_act.gif" width="50%" alt="ACT policy on ALOHA env"/>
-
 
 ## Installation
 
 Create a virtual environment with Python 3.10 and activate it, e.g. with [`miniconda`](https://docs.anaconda.com/free/miniconda/index.html):
+
 ```bash
-conda create -y -n aloha python=3.10 && conda activate aloha
+conda create -y -n luckyworld python=3.9 && conda activate luckyworld
 ```
 
-Install gym-aloha:
-```bash
-pip install gym-aloha
-```
+Install gym-luckyworld:
 
+```bash
+pip install gym-luckyworld
+```
 
 ## Quickstart
 
@@ -25,9 +25,9 @@ pip install gym-aloha
 import imageio
 import gymnasium as gym
 import numpy as np
-import gym_aloha
+import gym_luckyworld
 
-env = gym.make("gym_aloha/AlohaInsertion-v0")
+env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0-v0")
 observation, info = env.reset()
 frames = []
 
@@ -44,20 +44,24 @@ env.close()
 imageio.mimsave("example.mp4", np.stack(frames), fps=25)
 ```
 
-
 ## Description
-Aloha environment.
+
+LuckyWorld environment.
 
 Two tasks are available:
+
 - TransferCubeTask: The right arm needs to first pick up the red cube lying on the table, then place it inside the gripper of the other arm.
 - InsertionTask: The left and right arms need to pick up the socket and peg respectively, and then insert in mid-air so the peg touches the “pins” inside the socket.
 
 ### Action Space
+
 The action space consists of continuous values for each arm and gripper, resulting in a 14-dimensional vector:
+
 - Six values for each arm's joint positions (absolute values).
 - One value for each gripper's position, normalized between 0 (closed) and 1 (open).
 
 ### Observation Space
+
 Observations are provided as a dictionary with the following keys:
 
 - `qpos` and `qvel`: Position and velocity data for the arms and grippers.
@@ -65,45 +69,42 @@ Observations are provided as a dictionary with the following keys:
 - `env_state`: Additional environment state information, such as positions of the peg and sockets.
 
 ### Rewards
+
 - TransferCubeTask:
-    - 1 point for holding the box with the right gripper.
-    - 2 points if the box is lifted with the right gripper.
-    - 3 points for transferring the box to the left gripper.
-    - 4 points for a successful transfer without touching the table.
+  - 1 point for holding the box with the right gripper.
+  - 2 points if the box is lifted with the right gripper.
+  - 3 points for transferring the box to the left gripper.
+  - 4 points for a successful transfer without touching the table.
 - InsertionTask:
-    - 1 point for touching both the peg and a socket with the grippers.
-    - 2 points for grasping both without dropping them.
-    - 3 points if the peg is aligned with and touching the socket.
-    - 4 points for successful insertion of the peg into the socket.
+  - 1 point for touching both the peg and a socket with the grippers.
+  - 2 points for grasping both without dropping them.
+  - 3 points if the peg is aligned with and touching the socket.
+  - 4 points for successful insertion of the peg into the socket.
 
 ### Success Criteria
+
 Achieving the maximum reward of 4 points.
 
 ### Starting State
+
 The arms and the items (block, peg, socket) start at a random position and angle.
 
 ### Arguments
 
 ```python
 >>> import gymnasium as gym
->>> import gym_aloha
->>> env = gym.make("gym_aloha/AlohaInsertion-v0", obs_type="pixels", render_mode="rgb_array")
+>>> import gym_luckyworld
+>>> env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0-v0", obs_type="pixels", render_mode="rgb_array")
 >>> env
-<TimeLimit<OrderEnforcing<PassiveEnvChecker<AlohaEnv<gym_aloha/AlohaInsertion-v0>>>>>
+<TimeLimit<OrderEnforcing<PassiveEnvChecker<LuckyWorldEnv<gym_luckyworld/LuckyWorld-PickandPlace-v0>>>>>
 ```
 
 * `obs_type`: (str) The observation type. Can be either `pixels` or `pixels_agent_pos`. Default is `pixels`.
-
 * `render_mode`: (str) The rendering mode. Only `rgb_array` is supported for now.
-
 * `observation_width`: (int) The width of the observed image. Default is `640`.
-
 * `observation_height`: (int) The height of the observed image. Default is `480`.
-
 * `visualization_width`: (int) The width of the visualized image. Default is `640`.
-
 * `visualization_height`: (int) The height of the visualized image. Default is `480`.
-
 
 ### 🔧 GPU Rendering (EGL)
 
@@ -157,17 +158,16 @@ xla_flags += ' --xla_gpu_triton_gemm_any=True'
 os.environ['XLA_FLAGS'] = xla_flags
 ```
 
-
 ## Contribute
 
 Instead of using `pip` directly, we use `poetry` for development purposes to easily track our dependencies.
 If you don't have it already, follow the [instructions](https://python-poetry.org/docs/#installation) to install it.
 
 Install the project with dev dependencies:
+
 ```bash
 poetry install --all-extras
 ```
-
 
 ### Follow our style
 
@@ -179,7 +179,6 @@ pre-commit install
 pre-commit
 ```
 
-
 ## Acknowledgment
 
-gym-aloha is adapted from [ALOHA](https://tonyzhaozh.github.io/aloha/)
+gym-luckyworld is adapted from [gym-aloha](https://github.com/huggingface/gym-aloha/tree/main)
