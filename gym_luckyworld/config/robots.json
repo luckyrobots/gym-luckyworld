@@ -81,6 +81,12 @@
                 "fps": 30,
                 "camera_resolution": [640, 480]
             }
+        },
+        "target_space": {
+            "goal_pos": {
+                "lower": ["-inf", "-inf", "-inf"],
+                "upper": ["inf", "inf", "inf"]
+            }
         }
 
     },
