@@ -10,6 +10,8 @@ import luckyrobots as lr
 import numpy as np
 from gymnasium import spaces
 
+from .config.tasks import Navigation, PickandPlace
+
 
 class LuckyWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
@@ -30,6 +32,8 @@ class LuckyWorldEnv(gym.Env):
 
         self.timeout = timeout
         self.render_mode = render_mode
+
+        self._setup_task(task, robot_type)
         self._setup_spaces(robot_type, obs_type)
 
         self.robot_observation_history = deque(maxlen=10)
@@ -37,7 +41,7 @@ class LuckyWorldEnv(gym.Env):
         self._loop = asyncio.get_event_loop()
         asyncio.set_event_loop(self._loop)
 
-        # lr.start()
+        lr.start(task_name=task)
 
     def _setup_spaces(self, robot_type: str, obs_type: str) -> None:
         """Set up gymnasium-style observation and action spaces."""
@@ -64,25 +68,26 @@ class LuckyWorldEnv(gym.Env):
             dtype=np.float32,
         )
 
+    def _setup_task(self, task: str, robot_type: str) -> None:
+        """Set up the task."""
+        if task == "pickandplace":
+            self.task = PickandPlace(robot_type)
+        elif task == "navigation":
+            self.task = Navigation(robot_type)
+        else:
+            raise ValueError(f"Invalid task type: {task}")
+
     @lr.message_receiver
-    async def observation_sub(self, message, robot_images) -> Tuple[np.ndarray, np.ndarray]:
+    async def observation_sub(self, message: np.ndarray, robot_images: np.ndarray) -> None:
         """Subscribes to the observation."""
-        self.robot_observation_history.append(message)
-        return message, robot_images
+        self.robot_observation_history.append((message, robot_images))
 
     async def action_pub(self, action: np.ndarray) -> None:
         """Publishes the action."""
         await lr.send_commands(action)
 
     def _get_observation(self) -> np.ndarray:
-        """Get the observation from the robot."""
-        raw_obs = self._get_raw_observation()
-
-        # TODO: Process raw observation into gymnasium-compatible observation
-        return raw_obs
-
-    def _get_raw_observation(self) -> np.ndarray:
-        """Get the raw observation from the robot."""
+        """Get the observation from the history."""
         start_time = time.time()
 
         while len(self.robot_observation_history) == 0:
@@ -90,7 +95,12 @@ class LuckyWorldEnv(gym.Env):
                 raise TimeoutError("No observations received within timeout period")
             time.sleep(0.01)
 
-        return self.robot_observation_history[-1]
+        raw_obs = self.robot_observation_history[-1]
+
+        info = None
+
+        # TODO: Process raw observation into gymnasium-compatible observation
+        return raw_obs, info
 
     def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
         """
@@ -98,28 +108,24 @@ class LuckyWorldEnv(gym.Env):
         """
         super().reset(seed=seed)
 
+        self.task.reset(seed=seed)
+
         try:
-            observation = self._get_observation()
+            observation, info = self._get_observation()
         except TimeoutError as err:
             raise RuntimeError("Failed to get observation from robot") from err
 
-        info = {"is_success": False}
+        info["is_success"] = False
 
         return observation, info
 
-    def _get_reward(self) -> float:
+    def _get_reward(self, observation: np.ndarray, info: dict) -> float:
         """Get the reward from the task."""
-        return 0.0
+        return self.task.get_reward(observation, info)
 
-    def _is_terminated(self) -> bool:
-        """
-        Episode is terminated when:
-            - Failed grasp
-            - Failed placement
-            - Constraints violated
-            - Task completion
-        """
-        return False  # TODO: Add termination condition
+    def _is_terminated(self, observation: np.ndarray, info: dict) -> bool:
+        """Check if the episode is terminated."""
+        return self.task.is_terminated(observation, info)
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
@@ -131,14 +137,14 @@ class LuckyWorldEnv(gym.Env):
         self._loop.run_until_complete(self.action_pub(normalized_action))
 
         try:
-            observation = self._get_observation()
+            observation, info = self._get_observation()
         except TimeoutError as err:
             raise RuntimeError("Failed to get observation from robot") from err
 
-        reward = self._get_reward()
-        terminated = self._is_terminated()
+        reward = self._get_reward(observation, info)
+        terminated = self._is_terminated(observation, info)
         truncated = False  # TimeLimit wrapper will handle this
-        info = {"is_success": reward == 5}  # NOTE: Needs to represent a successful trajectory
+        info["is_success"] = reward == 5
 
         return observation, reward, terminated, truncated, info
 
@@ -146,11 +152,11 @@ class LuckyWorldEnv(gym.Env):
         """
         Render the environment.
         """
-        pass
+        self.task.render(self.render_mode)
 
     def close(self) -> None:
         """
         Close the environment.
         """
         self.robot_observation_history.clear()
-        lr.run_exit_handler()
+        lr.LuckyRobots.run_exit_handler()
