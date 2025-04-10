@@ -8,7 +8,7 @@ register(
     kwargs={
         "task": "pickandplace",
         "robot_type": "so100",
-        "obs_type": "pixels_agent_pos",
+        "obs_type": "environment_state_pixels_agent_pos",
     },
 )
 
@@ -20,6 +20,6 @@ register(
     kwargs={
         "task": "navigation",
         "robot_type": "stretch_v1",
-        "obs_type": "pixels_agent_pos",
+        "obs_type": "environment_state_pixels_agent_pos",
     },
 )

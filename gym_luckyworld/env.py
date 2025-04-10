@@ -41,14 +41,14 @@ class LuckyWorldEnv(gym.Env):
         self._loop = asyncio.get_event_loop()
         asyncio.set_event_loop(self._loop)
 
-        lr.start(task_name=task)
+        lr.start()
 
     def _setup_spaces(self, robot_type: str, obs_type: str) -> None:
         """Set up gymnasium-style observation and action spaces."""
-        with open(Path(__file__).parent / "config/robot.json") as f:
+        with open(Path(__file__).parent / "config/robots.json") as f:
             robot_config = json.load(f)[robot_type]
 
-        # Get action dimension from robot config
+        # Set up action space (same for all observation types)
         action_dim = len(robot_config["action_space"]["joint_names"])
         action_limits = robot_config["action_space"]["joint_limits"]
         self.action_space = spaces.Box(
@@ -58,15 +58,39 @@ class LuckyWorldEnv(gym.Env):
             dtype=np.float32,
         )
 
-        # Get observation dimension from robot config
+        # Set up observation space based on obs_type
         obs_dim = len(robot_config["observation_space"]["joint_names"])
         obs_limits = robot_config["observation_space"]["joint_limits"]
-        self.observation_space = spaces.Box(
-            low=np.array([limit["lower"] for limit in obs_limits]),
-            high=np.array([limit["upper"] for limit in obs_limits]),
-            shape=(obs_dim,),
-            dtype=np.float32,
-        )
+        target_limits = robot_config["target_space"]["goal_pos"]
+        target_dim = len(target_limits)
+        if obs_type == "environment_state_pixels_agent_pos":
+            # Camera image + agent position + target position
+            self.observation_space = spaces.Dict(
+                {
+                    "pixels": spaces.Box(
+                        low=0,
+                        high=255,
+                        shape=(64, 64, 3),  # Example image dimensions
+                        dtype=np.uint8,
+                    ),
+                    "agent_pos": spaces.Box(
+                        low=np.array([limit["lower"] for limit in obs_limits]),
+                        high=np.array([limit["upper"] for limit in obs_limits]),
+                        shape=(obs_dim,),
+                        dtype=np.float32,
+                    ),
+                    "target_pos": spaces.Box(
+                        low=np.array([limit["lower"] for limit in target_limits]),
+                        high=np.array([limit["upper"] for limit in target_limits]),
+                        shape=(target_dim,),
+                        dtype=np.float32,
+                    ),
+                }
+            )
+        else:
+            raise ValueError(f"Unknown observation type: {obs_type}")
+
+        self.obs_type = obs_type
 
     def _setup_task(self, task: str, robot_type: str) -> None:
         """Set up the task."""
@@ -86,8 +110,8 @@ class LuckyWorldEnv(gym.Env):
         """Publishes the action."""
         await lr.send_commands(action)
 
-    def _get_observation(self) -> np.ndarray:
-        """Get the observation from the history."""
+    def _get_raw_observation(self) -> np.ndarray:
+        """Get the raw observation from the history."""
         start_time = time.time()
 
         while len(self.robot_observation_history) == 0:
@@ -97,10 +121,21 @@ class LuckyWorldEnv(gym.Env):
 
         raw_obs = self.robot_observation_history[-1]
 
-        info = None
+        return raw_obs
 
-        # TODO: Process raw observation into gymnasium-compatible observation
-        return raw_obs, info
+    def _get_observation(self) -> np.ndarray:
+        """Process the raw observation into a gymnasium-compatible observation."""
+        raw_obs = self._get_raw_observation()
+        message, robot_images = raw_obs
+
+        if self.obs_type == "environment_state_pixels_agent_pos":
+            return {
+                "joint_positions": message,
+                "gripper_state": np.array([message[-1]]),
+                "target_pos": robot_images[-1],
+            }
+        else:
+            raise ValueError(f"Unknown observation type: {self.obs_type}")
 
     def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
         """
@@ -131,8 +166,10 @@ class LuckyWorldEnv(gym.Env):
         """
         Perform a step in the environment.
         """
-        # Normalize the action
-        normalized_action = self.action_space.high * action
+        # Normalize the action to the action space
+        normalized_action = np.clip(
+            self.action_space.high * action, self.action_space.low, self.action_space.high
+        )
 
         self._loop.run_until_complete(self.action_pub(normalized_action))
 
