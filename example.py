@@ -3,8 +3,8 @@ import numpy as np
 import gym_luckyworld
 import gymnasium as gym
 
-
 env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")
+
 observation, info = env.reset()
 frames = []
 

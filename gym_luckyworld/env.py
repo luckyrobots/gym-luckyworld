@@ -1,16 +1,16 @@
-import asyncio
 import json
-import time
-from collections import deque
+import logging
 from pathlib import Path
-from typing import Tuple
 
 import gymnasium as gym
-import luckyrobots as lr
 import numpy as np
 from gymnasium import spaces
+from luckyrobots import ActionModel, ObservationModel, PoseModel
 
-from .config.tasks import Navigation, PickandPlace
+from .config.task import Navigation, PickandPlace
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("luckyworld_env")
 
 
 class LuckyWorldEnv(gym.Env):
@@ -25,23 +25,30 @@ class LuckyWorldEnv(gym.Env):
         task: str,
         robot_type: str,
         obs_type: str,
-        timeout: float = 1.0,
+        timeout: float = 10.0,
         render_mode: str = "human",
+        binary_path: str = None,
     ):
         super().__init__()
 
         self.timeout = timeout
         self.render_mode = render_mode
+        self.binary_path = binary_path
+        self.robot_type = robot_type
 
-        self._setup_task(task, robot_type)
+        self.latest_observation = None
+
+        self._setup_task(task, binary_path, robot_type)
         self._setup_spaces(robot_type, obs_type)
 
-        self.robot_observation_history = deque(maxlen=10)
-
-        self._loop = asyncio.get_event_loop()
-        asyncio.set_event_loop(self._loop)
-
-        lr.start()
+    def _setup_task(self, task: str, binary_path: str, robot_type: str) -> None:
+        """Set up the task."""
+        if task == "pickandplace":
+            self.task = PickandPlace(binary_path, robot_type)
+        elif task == "navigation":
+            self.task = Navigation(binary_path, robot_type)
+        else:
+            raise ValueError(f"Invalid task type: {task}")
 
     def _setup_spaces(self, robot_type: str, obs_type: str) -> None:
         """Set up gymnasium-style observation and action spaces."""
@@ -61,8 +68,7 @@ class LuckyWorldEnv(gym.Env):
         # Set up observation space based on obs_type
         obs_dim = len(robot_config["observation_space"]["joint_names"])
         obs_limits = robot_config["observation_space"]["joint_limits"]
-        target_limits = robot_config["target_space"]["goal_pos"]
-        target_dim = len(target_limits)
+
         if obs_type == "environment_state_pixels_agent_pos":
             # Camera image + agent position + target position
             self.observation_space = spaces.Dict(
@@ -79,12 +85,6 @@ class LuckyWorldEnv(gym.Env):
                         shape=(obs_dim,),
                         dtype=np.float32,
                     ),
-                    "target_pos": spaces.Box(
-                        low=np.array([limit["lower"] for limit in target_limits]),
-                        high=np.array([limit["upper"] for limit in target_limits]),
-                        shape=(target_dim,),
-                        dtype=np.float32,
-                    ),
                 }
             )
         else:
@@ -92,108 +92,157 @@ class LuckyWorldEnv(gym.Env):
 
         self.obs_type = obs_type
 
-    def _setup_task(self, task: str, robot_type: str) -> None:
-        """Set up the task."""
-        if task == "pickandplace":
-            self.task = PickandPlace(robot_type)
-        elif task == "navigation":
-            self.task = Navigation(robot_type)
-        else:
-            raise ValueError(f"Invalid task type: {task}")
-
-    @lr.message_receiver
-    async def observation_sub(self, message: np.ndarray, robot_images: np.ndarray) -> None:
-        """Subscribes to the observation."""
-        self.robot_observation_history.append((message, robot_images))
-
-    async def action_pub(self, action: np.ndarray) -> None:
-        """Publishes the action."""
-        await lr.send_commands(action)
-
-    def _get_raw_observation(self) -> np.ndarray:
-        """Get the raw observation from the history."""
-        start_time = time.time()
-
-        while len(self.robot_observation_history) == 0:
-            if time.time() - start_time > self.timeout:
-                raise TimeoutError("No observations received within timeout period")
-            time.sleep(0.01)
-
-        raw_obs = self.robot_observation_history[-1]
-
-        return raw_obs
-
-    def _get_observation(self) -> np.ndarray:
-        """Process the raw observation into a gymnasium-compatible observation."""
-        raw_obs = self._get_raw_observation()
-        message, robot_images = raw_obs
-
-        if self.obs_type == "environment_state_pixels_agent_pos":
-            return {
-                "joint_positions": message,
-                "gripper_state": np.array([message[-1]]),
-                "target_pos": robot_images[-1],
-            }
-        else:
-            raise ValueError(f"Unknown observation type: {self.obs_type}")
-
-    def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
+    def _convert_observation(self, observation: ObservationModel) -> dict:
         """
-        Reset the environment.
+        Convert the raw ObservationModel to a dictionary format compatible with Gymnasium.
         """
-        super().reset(seed=seed)
+        # Initialize observation dictionary with default values
+        obs_dict = {
+            "agent_pos": np.zeros(6, dtype=np.float32),
+            "pixels": np.zeros((64, 64, 3), dtype=np.uint8),
+        }
 
-        self.task.reset(seed=seed)
+        # Extract data from observation_state
+        if hasattr(observation, "observation_state") and observation.observation_state:
+            state_dict = observation.observation_state
 
-        try:
-            observation, info = self._get_observation()
-        except TimeoutError as err:
-            raise RuntimeError("Failed to get observation from robot") from err
+            # Extract agent position (joint angles) - assuming they're stored as integers
+            # We need to convert to the proper data type and scale
+            joint_positions = np.zeros(6, dtype=np.float32)
 
-        info["is_success"] = False
+            # Map the appropriate fields from observation_state to joint_positions
+            # This mapping depends on how your robot's state is represented
+            for i in range(6):
+                # Adjust the key names as needed for your specific implementation
+                joint_key = f"joint_{i}"
+                if joint_key in state_dict:
+                    # Convert from int to float and scale appropriately
+                    # Assuming the values are stored as integers with some scaling factor
+                    joint_positions[i] = float(state_dict[joint_key]) / 1000.0  # Adjust scaling as needed
+
+            obs_dict["agent_pos"] = joint_positions
+
+        # Process camera data
+        if hasattr(observation, "observation_cameras") and observation.observation_cameras:
+            for camera_data in observation.observation_cameras:
+                try:
+                    # Check if file path exists
+                    if hasattr(camera_data, "file_path") and camera_data.file_path:
+                        # In a real implementation, you would load the image from the file path
+                        # For example:
+                        # import cv2
+                        # img = cv2.imread(camera_data.file_path)
+                        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        # Resize to match the expected dimensions if needed
+                        # img = cv2.resize(img, (64, 64))
+                        # obs_dict["pixels"] = img
+
+                        # For now, we'll use a placeholder
+                        obs_dict["pixels"] = np.zeros((64, 64, 3), dtype=np.uint8)
+                        break  # Just use the first camera for now
+                except Exception as e:
+                    logger.warning(f"Error processing camera data: {e}")
+                    # Keep default camera placeholder
+
+        return obs_dict
+
+    def _convert_action(self, action: np.ndarray) -> ActionModel:
+        """
+        Convert a NumPy array action to an ActionModel instance to pass over websocket to LuckyWorld.
+        """
+        # Assuming the first 3 values are position (x, y, z)
+        # and the next 3-4 values are orientation (could be euler angles or quaternion)
+        if len(action) >= 6:  # At least position and orientation
+            # Extract position (first 3 values)
+            position = {"x": float(action[0]), "y": float(action[1]), "z": float(action[2])}
+
+            # Extract orientation
+            if len(action) >= 7:  # Quaternion (x, y, z, w)
+                orientation = {
+                    "x": float(action[3]),
+                    "y": float(action[4]),
+                    "z": float(action[5]),
+                    "w": float(action[6]),
+                }
+            else:  # Euler angles (roll, pitch, yaw) - convert to quaternion
+                # This is a simplified conversion - you might need a more accurate one
+                # depending on your convention (XYZ, ZYX, etc.)
+                roll, pitch, yaw = action[3], action[4], action[5]
+
+                # Simple conversion from Euler angles to quaternion
+                # Note: This is just an example and might not match your convention
+                import math
+
+                cy = math.cos(yaw * 0.5)
+                sy = math.sin(yaw * 0.5)
+                cp = math.cos(pitch * 0.5)
+                sp = math.sin(pitch * 0.5)
+                cr = math.cos(roll * 0.5)
+                sr = math.sin(roll * 0.5)
+
+                orientation = {
+                    "w": cr * cp * cy + sr * sp * sy,
+                    "x": sr * cp * cy - cr * sp * sy,
+                    "y": cr * sp * cy + sr * cp * sy,
+                    "z": cr * cp * sy - sr * sp * cy,
+                }
+
+            # Create a PoseModel instance
+            pose = PoseModel(position=position, orientation=orientation)
+
+            # Create and return the ActionModel
+            return ActionModel(pose=pose)
+
+        elif len(action) == 3:  # Just position
+            position = {"x": float(action[0]), "y": float(action[1]), "z": float(action[2])}
+
+            # Default orientation (identity quaternion)
+            orientation = {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}
+
+            pose = PoseModel(position=position, orientation=orientation)
+            return ActionModel(pose=pose)
+
+        else:
+            # For very short arrays or other formats, you might need to adapt
+            # this part to your specific requirements
+            raise ValueError(f"Action array with length {len(action)} not supported")
+
+    def reset(self, seed: int = None, options: dict = None) -> tuple[np.ndarray, dict]:
+        """Reset the environment."""
+        super().reset(seed=seed, options=options)
+
+        raw_observation, info = self.task.reset(seed=seed)
+        # Store the raw observation for rendering
+        self.latest_observation = raw_observation
+
+        observation = self._convert_observation(raw_observation)
 
         return observation, info
 
-    def _get_reward(self, observation: np.ndarray, info: dict) -> float:
-        """Get the reward from the task."""
-        return self.task.get_reward(observation, info)
+    def step(self, action: np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict]:
+        """Perform a step in the environment."""
+        raw_action = self._convert_action(action)
 
-    def _is_terminated(self, observation: np.ndarray, info: dict) -> bool:
-        """Check if the episode is terminated."""
-        return self.task.is_terminated(observation, info)
+        raw_observation, reward, terminated, truncated, info = self.task.step(raw_action)
+        # Store the raw observation for rendering
+        self.latest_observation = raw_observation
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
-        """
-        Perform a step in the environment.
-        """
-        # Normalize the action to the action space
-        normalized_action = np.clip(
-            self.action_space.high * action, self.action_space.low, self.action_space.high
-        )
-
-        self._loop.run_until_complete(self.action_pub(normalized_action))
-
-        try:
-            observation, info = self._get_observation()
-        except TimeoutError as err:
-            raise RuntimeError("Failed to get observation from robot") from err
-
-        reward = self._get_reward(observation, info)
-        terminated = self._is_terminated(observation, info)
-        truncated = False  # TimeLimit wrapper will handle this
-        info["is_success"] = reward == 5
+        observation = self._convert_observation(raw_observation)
 
         return observation, reward, terminated, truncated, info
 
-    def render(self) -> None:
+    def render(self) -> np.ndarray:
         """
         Render the environment.
         """
-        self.task.render(self.render_mode)
+        if self.render_mode == "human" or self.render_mode == "rgb_array":
+            pass
+
+        return None
 
     def close(self) -> None:
-        """
-        Close the environment.
-        """
-        self.robot_observation_history.clear()
-        lr.LuckyRobots.run_exit_handler()
+        """Close the environment."""
+        if self.task:
+            self.task.shutdown()
+
+        logger.info("Environment closed")
