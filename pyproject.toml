@@ -1,19 +1,19 @@
 [tool.poetry]
 name = "gym-luckyworld"
-version = "0.0.1"
+version = "0.0.2"
 description = "A gym environment for LuckyWorld"
 authors = [
     "Ethan M. Clark <eclark715@gmail.com>"
 ]
 readme = "README.md"
-license = "Apache-2.0"
-keywords = ["robotics", "deep", "reinforcement", "learning", "luckyworld", "environment", "gym", "gymnasium", "dm-control", "mujoco"]
+license = "MIT"
+keywords = ["robotics", "deep", "reinforcement", "learning", "luckyworld", "environment", "gym", "gymnasium", "mujoco"]
 classifiers=[
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Build Tools",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.9",
 ]
 packages = [{include = "gym_luckyworld"}]
 

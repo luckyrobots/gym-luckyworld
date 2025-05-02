@@ -7,23 +7,35 @@ repos:
     hooks:
       - id: check-added-large-files
         args: ['--maxkb=5000']
-      - id: debug-statements
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: check-yaml
       - id: check-toml
-      - id: end-of-file-fixer
-      - id: trailing-whitespace
+      - id: debug-statements
+
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.2
     hooks:
-    -   id: pyupgrade
+      - id: pyupgrade
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.3
+    rev: v0.11.8
     hooks:
       - id: ruff
         args: [--fix]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.8
+    hooks:
       - id: ruff-format
+        types_or: [python, pyi]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
   - repo: https://github.com/python-poetry/poetry
     rev: 1.8.0
     hooks:

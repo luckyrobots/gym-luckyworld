@@ -10,7 +10,7 @@ on:
       - main
 
 env:
-  PYTHON_VERSION: "3.10"
+  PYTHON_VERSION: "3.9"
 
 jobs:
   style:
