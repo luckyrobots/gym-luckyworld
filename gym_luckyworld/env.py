@@ -62,7 +62,6 @@ class LuckyWorldEnv(gym.Env):
             low=np.array([limit["lower"] for limit in action_limits]),
             high=np.array([limit["upper"] for limit in action_limits]),
             shape=(action_dim,),
-            dtype=np.float32,
         )
 
         # Set up observation space based on obs_type
@@ -83,7 +82,6 @@ class LuckyWorldEnv(gym.Env):
                         low=np.array([limit["lower"] for limit in obs_limits]),
                         high=np.array([limit["upper"] for limit in obs_limits]),
                         shape=(obs_dim,),
-                        dtype=np.float32,
                     ),
                 }
             )
