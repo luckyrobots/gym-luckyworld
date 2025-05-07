@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 
@@ -6,19 +5,16 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 from luckyrobots import ActionModel, ObservationModel, PoseModel
+from omegaconf import OmegaConf
 
 from .task import Navigation, PickandPlace
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("luckyworld_env")
+logger = logging.getLogger("gym_luckyworld")
 
 
-class LuckyWorldEnv(gym.Env):
+class LuckyWorld(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
-
-    """
-    A gymnasium-compatible environment for the LuckyWorld simulator.
-    """
 
     def __init__(
         self,
@@ -32,33 +28,41 @@ class LuckyWorldEnv(gym.Env):
     ):
         super().__init__()
 
-        self.scene = scene
         self.task = task
-        self.robot_type = robot_type
         self.timeout = timeout
         self.obs_type = obs_type
         self.render_mode = render_mode
-        self.binary_path = binary_path
 
         self.latest_observation = None
 
-        self._setup_task(scene, task, robot_type, binary_path)
-        self._setup_spaces(robot_type, obs_type)
+        robots_config = OmegaConf.load(Path(__file__).parent / "config/robots.yaml")
 
-    def _setup_task(self, scene: str, task: str, robot_type: str, binary_path: str) -> None:
-        """Set up the task."""
+        self._validate_params(robots_config, obs_type, scene, task, robot_type)
+
+        self._setup_task(scene, task, robot_type, binary_path, render_mode)
+        self._setup_spaces(robots_config[robot_type], obs_type)
+
+    def _validate_params(
+        self, robots_config: dict[str, any], obs_type: str, scene: str, task: str, robot_type: str
+    ) -> None:
+        if robot_type not in robots_config:
+            raise ValueError(f"Invalid robot type: {robot_type}")
+        if obs_type not in robots_config[robot_type]["observation_types"]:
+            raise ValueError(f"Invalid observation type: {obs_type}")
+        if scene not in robots_config[robot_type]["available_scenes"]:
+            raise ValueError(f"Invalid scene: {scene}")
+        if task not in robots_config[robot_type]["available_tasks"]:
+            raise ValueError(f"Invalid task: {task}")
+
+    def _setup_task(self, scene: str, task: str, robot_type: str, binary_path: str, render_mode: str) -> None:
         if task == "pickandplace":
-            self.task = PickandPlace(scene, task, robot_type, binary_path)
+            self.task = PickandPlace(scene, task, robot_type, binary_path, render_mode)
         elif task == "navigation":
-            self.task = Navigation(scene, task, robot_type, binary_path)
+            self.task = Navigation(scene, task, robot_type, binary_path, render_mode)
         else:
             raise ValueError(f"Invalid task type: {task}")
 
-    def _setup_spaces(self, robot_type: str, obs_type: str) -> None:
-        """Set up gymnasium-style observation and action spaces."""
-        with open(Path(__file__).parent / "config/robots.json") as f:
-            robot_config = json.load(f)[robot_type]
-
+    def _setup_spaces(self, robot_config: dict[str, any], obs_type: str) -> None:
         # Set up action space (same for all observation types)
         action_dim = len(robot_config["action_space"]["joint_names"])
         action_limits = robot_config["action_space"]["joint_limits"]
@@ -92,12 +96,7 @@ class LuckyWorldEnv(gym.Env):
         else:
             raise ValueError(f"Unknown observation type: {obs_type}")
 
-        self.obs_type = obs_type
-
     def _convert_observation(self, observation: ObservationModel) -> dict:
-        """
-        Convert the raw ObservationModel to a dictionary format compatible with Gymnasium.
-        """
         # Initialize observation dictionary with default values
         obs_dict = {
             "agent_pos": np.zeros(6, dtype=np.float32),
@@ -210,7 +209,6 @@ class LuckyWorldEnv(gym.Env):
             raise ValueError(f"Action array with length {len(action)} not supported")
 
     def reset(self, seed: int = None, options: dict = None) -> tuple[np.ndarray, dict]:
-        """Reset the environment."""
         super().reset(seed=seed, options=options)
 
         raw_observation, info = self.task.reset(seed=seed)
@@ -222,7 +220,6 @@ class LuckyWorldEnv(gym.Env):
         return observation, info
 
     def step(self, action: np.ndarray) -> tuple[dict[str, np.ndarray], float, bool, bool, dict]:
-        """Perform a step in the environment."""
         raw_action = self._convert_action(action)
 
         raw_observation, reward, terminated, truncated, info = self.task.step(raw_action)
@@ -233,17 +230,32 @@ class LuckyWorldEnv(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
-    def render(self) -> np.ndarray:
-        """
-        Render the environment.
-        """
-        if self.render_mode == "human" or self.render_mode == "rgb_array":
-            pass
+    def render(self, camera_index: int = 0) -> np.ndarray:
+        if self.latest_observation is None:
+            logger.warning("No observation available for rendering")
+            return np.zeros((64, 64, 3), dtype=np.uint8)
 
-        return None
+        if self.render_mode is None or self.render_mode == "human":
+            return None
+        elif self.render_mode == "rgb_array":
+            cameras = self.latest_observation.observation_cameras
+            if cameras is None:
+                logger.warning("No camera data found in observation")
+                return np.zeros((64, 64, 3), dtype=np.uint8)
+            if camera_index >= len(cameras):
+                logger.warning(f"Camera index {camera_index} out of range. Using camera 0 instead.")
+                camera_index = 0
+
+            try:
+                camera_data = cameras[camera_index]
+                return camera_data.image
+            except Exception as e:
+                logger.warning(f"Error rendering camera {camera_index} data: {e}")
+                return np.zeros((64, 64, 3), dtype=np.uint8)
+        else:
+            raise ValueError(f"Unsupported render mode: {self.render_mode}")
 
     def close(self) -> None:
-        """Close the environment."""
         if self.task:
             self.task.shutdown()
 

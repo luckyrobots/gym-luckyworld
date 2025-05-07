@@ -1,6 +1,6 @@
 import imageio
 import numpy as np
-import gym_luckyworld
+import gym_luckyworld # noqa: F401
 import gymnasium as gym
 
 env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")

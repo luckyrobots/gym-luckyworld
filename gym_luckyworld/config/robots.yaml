@@ -67,5 +67,4 @@ so100:
     phone:
       camera_index: 1
       fps: 30
-      camera_resolution: [640, 480] 
-  
+      camera_resolution: [640, 480]

@@ -16,16 +16,15 @@ class Task(abc.ABC, Node):
         task: str,
         robot_type: str,
         binary_path: str,
+        render_mode: str,
         namespace: str = "",
         timeout: float = 30,
     ) -> None:
-        self.node_name = self.__class__.__name__.lower()
-        self.binary_path = binary_path
-        self.robot_type = robot_type
-        self.namespace = namespace
+        node_name = self.__class__.__name__.lower()
+
         self.timeout = timeout
 
-        Node.__init__(self, self.node_name, namespace)
+        Node.__init__(self, node_name, namespace)
 
         self.luckyrobots = LuckyRobots()
         self.luckyrobots.register_node(self)
@@ -100,14 +99,15 @@ class PickandPlace(Task):
         task: str,
         robot_type: str,
         binary_path: str,
+        render_mode: str,
         namespace: str = "",
         timeout: float = 30,
     ) -> None:
-        super().__init__(scene, task, robot_type, binary_path, namespace, timeout)
+        super().__init__(scene, task, robot_type, binary_path, render_mode, namespace, timeout)
 
         self.has_grasped = None
 
-        self.luckyrobots.start(scene, task, robot_type, binary_path)
+        self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
 
         self._wait_for_luckyworld()
 
@@ -147,27 +147,21 @@ class Navigation(Task):
         task: str,
         robot_type: str,
         binary_path: str,
+        render_mode: str,
         namespace: str = "",
         timeout: float = 10.0,
     ) -> None:
-        super().__init__(scene, task, robot_type, binary_path, namespace, timeout)
-
-        self.target_position = None
-        self.previous_distance = None
-        self.has_collided = False
+        super().__init__(scene, task, robot_type, binary_path, render_mode, namespace, timeout)
 
         self.target_tolerance = 0.1
 
-        self.luckyrobots.start(scene, task, robot_type, binary_path)
+        self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
 
         self._wait_for_luckyworld()
 
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
     ) -> tuple[np.ndarray, dict[str, any]]:
-        self.previous_distance = None
-        self.has_collided = False
-
         raw_observation, info = super().reset(seed=seed, options=options)
 
         return raw_observation, info
