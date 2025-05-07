@@ -10,6 +10,7 @@ register(
     max_episode_steps=300,
     nondeterministic=True,
     kwargs={
+        "scene": "loft",
         "task": "pickandplace",
         "robot_type": "so100",
         "obs_type": "environment_state_pixels_agent_pos",

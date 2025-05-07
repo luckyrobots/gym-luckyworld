@@ -16,11 +16,14 @@ class Task(abc.ABC, Node):
     @abc.abstractmethod
     def __init__(
         self,
-        binary_path: str,
+        scene: str,
+        task: str,
         robot_type: str,
+        binary_path: str,
         namespace: str = "",
         timeout: float = 30,
     ) -> None:
+        
         self.node_name = self.__class__.__name__.lower()
         self.binary_path = binary_path
         self.robot_type = robot_type
@@ -102,25 +105,20 @@ class PickandPlace(Task):
 
     def __init__(
         self,
-        binary_path: str,
+        scene: str,
+        task: str,
         robot_type: str,
+        binary_path: str,
         namespace: str = "",
-        grasp_reward: float = 1.0,
-        lift_reward: float = 1.0,
-        place_reward: float = 3.0,
+        timeout: float = 30,
     ) -> None:
-        super().__init__(binary_path, robot_type, namespace)
-
-        self.grasp_reward = grasp_reward
-        self.lift_reward = lift_reward
-        self.place_reward = place_reward
+        super().__init__(scene, task, robot_type, binary_path, namespace, timeout)
 
         self.has_grasped = False
         self.has_lifted = False
         self.has_placed = False
 
-        # self.luckyrobots.start(robot_type=robot_type, task="pickandplace", binary_path=self.binary_path)
-        self.luckyrobots.start(binary_path=self.binary_path)
+        self.luckyrobots.start(scene, task, robot_type, binary_path)
 
         self._wait_for_luckyworld()
 
@@ -167,25 +165,23 @@ class Navigation(Task):
 
     def __init__(
         self,
-        binary_path: str,
+        scene: str,
+        task: str,
         robot_type: str,
-        target_reward: float = 5.0,
-        distance_reward_scale: float = 0.1,
-        collision_penalty: float = -1.0,
-        target_tolerance: float = 0.1,
+        binary_path: str,
+        namespace: str = "",
         timeout: float = 10.0,
     ) -> None:
-        super().__init__(binary_path, robot_type, timeout)
-        self.target_reward = target_reward
-        self.distance_reward_scale = distance_reward_scale
-        self.collision_penalty = collision_penalty
-        self.target_tolerance = target_tolerance
+    
+        super().__init__(scene, task, robot_type, binary_path, namespace, timeout)
 
         self.target_position = None
         self.previous_distance = None
         self.has_collided = False
 
-        self.luckyrobots.start(binary_path=self.binary_path, robot_type=robot_type, task="navigation")
+        self.target_tolerance = 0.1
+
+        self.luckyrobots.start(scene, task, robot_type, binary_path)
 
         self._wait_for_luckyworld()
 

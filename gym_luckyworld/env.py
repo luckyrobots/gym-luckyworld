@@ -7,7 +7,7 @@ import numpy as np
 from gymnasium import spaces
 from luckyrobots import ActionModel, ObservationModel, PoseModel
 
-from .config.task import Navigation, PickandPlace
+from .task import Navigation, PickandPlace
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("luckyworld_env")
@@ -22,6 +22,7 @@ class LuckyWorldEnv(gym.Env):
 
     def __init__(
         self,
+        scene: str,
         task: str,
         robot_type: str,
         obs_type: str,
@@ -31,22 +32,25 @@ class LuckyWorldEnv(gym.Env):
     ):
         super().__init__()
 
+        self.scene = scene
+        self.task = task
+        self.robot_type = robot_type
         self.timeout = timeout
+        self.obs_type = obs_type
         self.render_mode = render_mode
         self.binary_path = binary_path
-        self.robot_type = robot_type
 
         self.latest_observation = None
 
-        self._setup_task(task, binary_path, robot_type)
+        self._setup_task(scene, task, robot_type, binary_path)
         self._setup_spaces(robot_type, obs_type)
 
-    def _setup_task(self, task: str, binary_path: str, robot_type: str) -> None:
+    def _setup_task(self, scene: str, task: str, robot_type: str, binary_path: str) -> None:
         """Set up the task."""
         if task == "pickandplace":
-            self.task = PickandPlace(binary_path, robot_type)
+            self.task = PickandPlace(scene, task, robot_type, binary_path)
         elif task == "navigation":
-            self.task = Navigation(binary_path, robot_type)
+            self.task = Navigation(scene, task, robot_type, binary_path)
         else:
             raise ValueError(f"Invalid task type: {task}")
 
