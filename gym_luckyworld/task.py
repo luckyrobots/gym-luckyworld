@@ -102,10 +102,12 @@ class PickandPlace(Task):
         render_mode: str,
         namespace: str = "",
         timeout: float = 30,
+        distance_threshold: float = 0.05,
     ) -> None:
         super().__init__(scene, task, robot_type, binary_path, render_mode, namespace, timeout)
 
         self.has_grasped = None
+        self.distance_threshold = distance_threshold
 
         self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
 
@@ -132,7 +134,8 @@ class PickandPlace(Task):
         object_grasped = info.get("object_grasped", False)
         self.has_grasped = object_grasped or self.has_grasped
 
-        object_at_target = info.get("object_at_target", False)
+        object_distance = info.get("object_distance", 0.0)
+        object_at_target = object_distance < self.distance_threshold
 
         success = object_at_target and not object_grasped
         fail = self.has_grasped and not object_grasped and not object_at_target
