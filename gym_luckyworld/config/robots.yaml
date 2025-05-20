@@ -68,3 +68,14 @@ so100:
       camera_index: 1
       fps: 30
       camera_resolution: [640, 480]
+
+stretch_v1:
+  observation_types:
+    - environment_state_pixels_agent_pos
+  available_scenes:
+    - loft
+  available_tasks:
+    - pickandplace
+    - navigation
+  action_space:
+  observation_space:

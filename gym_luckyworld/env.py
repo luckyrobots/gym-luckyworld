@@ -4,7 +4,7 @@ from pathlib import Path
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-from luckyrobots import ActionModel, ObservationModel, PoseModel
+from luckyrobots import ActionModel, ObservationModel
 from omegaconf import OmegaConf
 
 from .task import Navigation, PickandPlace
@@ -29,6 +29,7 @@ class LuckyWorld(gym.Env):
         super().__init__()
 
         self.task = task
+        self.robot_type = robot_type
         self.timeout = timeout
         self.obs_type = obs_type
         self.render_mode = render_mode
@@ -96,6 +97,7 @@ class LuckyWorld(gym.Env):
         else:
             raise ValueError(f"Unknown observation type: {obs_type}")
 
+    # TODO: Fix this once we get the observation images working
     def _convert_observation(self, observation: ObservationModel) -> dict:
         # Initialize observation dictionary with default values
         obs_dict = {
@@ -151,62 +153,17 @@ class LuckyWorld(gym.Env):
         """
         Convert a NumPy array action to an ActionModel instance to pass over websocket to LuckyWorld.
         """
-        # Assuming the first 3 values are position (x, y, z)
-        # and the next 3-4 values are orientation (could be euler angles or quaternion)
-        if len(action) >= 6:  # At least position and orientation
-            # Extract position (first 3 values)
-            position = {"x": float(action[0]), "y": float(action[1]), "z": float(action[2])}
+        if action.size == self.action_space.shape[0] and self.action_space.contains(action):
+            if self.robot_type == 'so100':
+                joint_positions = {f"{i}": action[i] for i in range(action.size)}
+                action_model = ActionModel(joint_positions=joint_positions)
+            elif self.robot_type == 'stretch_v1':
+                joint_velocities = {f"{i}": action[i] for i in range(action.size)}
+                action_model = ActionModel(joint_velocities=joint_velocities)
 
-            # Extract orientation
-            if len(action) >= 7:  # Quaternion (x, y, z, w)
-                orientation = {
-                    "x": float(action[3]),
-                    "y": float(action[4]),
-                    "z": float(action[5]),
-                    "w": float(action[6]),
-                }
-            else:  # Euler angles (roll, pitch, yaw) - convert to quaternion
-                # This is a simplified conversion - you might need a more accurate one
-                # depending on your convention (XYZ, ZYX, etc.)
-                roll, pitch, yaw = action[3], action[4], action[5]
-
-                # Simple conversion from Euler angles to quaternion
-                # Note: This is just an example and might not match your convention
-                import math
-
-                cy = math.cos(yaw * 0.5)
-                sy = math.sin(yaw * 0.5)
-                cp = math.cos(pitch * 0.5)
-                sp = math.sin(pitch * 0.5)
-                cr = math.cos(roll * 0.5)
-                sr = math.sin(roll * 0.5)
-
-                orientation = {
-                    "w": cr * cp * cy + sr * sp * sy,
-                    "x": sr * cp * cy - cr * sp * sy,
-                    "y": cr * sp * cy + sr * cp * sy,
-                    "z": cr * cp * sy - sr * sp * cy,
-                }
-
-            # Create a PoseModel instance
-            pose = PoseModel(position=position, orientation=orientation)
-
-            # Create and return the ActionModel
-            return ActionModel(pose=pose)
-
-        elif len(action) == 3:  # Just position
-            position = {"x": float(action[0]), "y": float(action[1]), "z": float(action[2])}
-
-            # Default orientation (identity quaternion)
-            orientation = {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}
-
-            pose = PoseModel(position=position, orientation=orientation)
-            return ActionModel(pose=pose)
-
+            return action_model
         else:
-            # For very short arrays or other formats, you might need to adapt
-            # this part to your specific requirements
-            raise ValueError(f"Action array with length {len(action)} not supported")
+            raise ValueError(f"Action array with length {action.size} not supported")
 
     def reset(self, seed: int = None, options: dict = None) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed, options=options)
@@ -230,6 +187,7 @@ class LuckyWorld(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
+    # TODO: Fix this once we get the observation images working
     def render(self, camera_index: int = 0) -> np.ndarray:
         if self.latest_observation is None:
             logger.warning("No observation available for rendering")

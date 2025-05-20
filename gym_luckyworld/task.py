@@ -33,14 +33,6 @@ class Task(abc.ABC, Node):
         self.reset_client = self.create_client(Reset, "/reset")
         self.step_client = self.create_client(Step, "/step")
 
-    def _wait_for_luckyworld(self) -> None:
-        logger.info("Waiting for LuckyWorld client to connect...")
-        if not self.luckyrobots.wait_for_world_client(timeout=self.timeout):
-            logger.error("No Lucky World client connected within timeout period")
-            raise TimeoutError("No Lucky World client connected within timeout period")
-
-        logger.info("LuckyRobots initialized successfully")
-
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
     ) -> tuple[np.ndarray, dict[str, any]]:
@@ -52,6 +44,7 @@ class Task(abc.ABC, Node):
 
         if not response.success:
             logger.error(f"Failed to reset environment: {response.message}")
+            self.shutdown()
             raise RuntimeError(f"Failed to reset environment: {response.message}")
 
         raw_observation = response.observation
@@ -68,6 +61,7 @@ class Task(abc.ABC, Node):
 
         if not response.success:
             logger.error(f"Failed to step environment: {response.message}")
+            self.shutdown()
             raise RuntimeError(f"Failed to step environment: {response.message}")
 
         raw_observation = response.observation
@@ -110,8 +104,7 @@ class PickandPlace(Task):
         self.distance_threshold = distance_threshold
 
         self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
-
-        self._wait_for_luckyworld()
+        self.luckyrobots.wait_for_world_client(timeout=self.timeout)
 
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
@@ -125,16 +118,17 @@ class PickandPlace(Task):
     def get_reward(self, observation: np.ndarray, info: dict[str, any]) -> float:
         return 0.0
 
+    # TODO: Improve the distance threshold once the information dictionary is refined
     def is_terminated(self, observation: np.ndarray, info: dict[str, any]) -> bool:
         """
         Episode terminates if:
         - Object is placed at target (success)
         - Object was dropped not at target (fail)
         """
-        object_grasped = info.get("object_grasped", False)
+        object_grasped = bool(info['is_object_grasped'])
         self.has_grasped = object_grasped or self.has_grasped
 
-        object_distance = info.get("object_distance", 0.0)
+        object_distance = float(info['object_distance_from_target'])
         object_at_target = object_distance < self.distance_threshold
 
         success = object_at_target and not object_grasped
@@ -159,8 +153,7 @@ class Navigation(Task):
         self.target_tolerance = 0.1
 
         self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
-
-        self._wait_for_luckyworld()
+        self.luckyrobots.wait_for_world_client(timeout=self.timeout)
 
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
@@ -172,17 +165,17 @@ class Navigation(Task):
     def get_reward(self, observation: np.ndarray, info: dict[str, any]) -> float:
         return 0.0
 
+    # TODO: Improve the distance threshold once the information dictionary is refined and Stretch is added
     def is_terminated(self, observation: np.ndarray, info: dict[str, any]) -> bool:
         """
         Episode terminates if:
         - Robot reaches target (success)
         - Robot collides with obstacle (fail)
         """
+        robot_distance = float(info['object_distance_from_target'])
+        collision = bool(info['collision'])
 
-        reached_target = info.get("reached_target", False)
-        collision = info.get("collision", False)
-
-        success = reached_target and not collision
+        success = robot_distance < self.target_tolerance and not collision
         fail = collision
 
         return success or fail
