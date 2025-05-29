@@ -2,7 +2,7 @@ import abc
 import logging
 
 import numpy as np
-from luckyrobots import ActionModel, LuckyRobots, Node, Reset, Step, run_coroutine
+from luckyrobots import LuckyRobots, Node, Reset, Step, run_coroutine
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("task")
@@ -14,8 +14,7 @@ class Task(abc.ABC, Node):
         self,
         scene: str,
         task: str,
-        robot_type: str,
-        binary_path: str,
+        robot: str,
         render_mode: str,
         namespace: str = "",
         timeout: float = 30,
@@ -24,7 +23,7 @@ class Task(abc.ABC, Node):
 
         self.timeout = timeout
 
-        Node.__init__(self, node_name, namespace)
+        Node.__init__(self, node_name, namespace, host="localhost", port=3000)
 
         self.luckyrobots = LuckyRobots()
         self.luckyrobots.register_node(self)
@@ -52,10 +51,10 @@ class Task(abc.ABC, Node):
 
         return raw_observation, info
 
-    def step(self, action: ActionModel) -> tuple[np.ndarray, float, bool, bool, dict[str, any]]:
-        logger.info(f"Stepping environment with action: {action}")
+    def step(self, actuator_values: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, any]]:
+        logger.info(f"Stepping environment with actuator values: {actuator_values}")
 
-        request = Step.Request(action=action)
+        request = Step.Request(actuator_values=actuator_values)
         future = run_coroutine(self.step_client.call(request, timeout=self.timeout))
         response = future.result()
 
@@ -91,20 +90,19 @@ class PickandPlace(Task):
         self,
         scene: str,
         task: str,
-        robot_type: str,
-        binary_path: str,
+        robot: str,
         render_mode: str,
         namespace: str = "",
         timeout: float = 30,
         distance_threshold: float = 0.05,
     ) -> None:
-        super().__init__(scene, task, robot_type, binary_path, render_mode, namespace, timeout)
+        super().__init__(scene, task, robot, render_mode, namespace, timeout)
 
         self.has_grasped = None
         self.distance_threshold = distance_threshold
 
-        self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
-        self.luckyrobots.wait_for_world_client(timeout=self.timeout)
+        self.luckyrobots.start(scene=scene, task=task, robot=robot, render_mode=render_mode)
+        self.luckyrobots.wait_for_world_client()
 
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
@@ -125,10 +123,10 @@ class PickandPlace(Task):
         - Object is placed at target (success)
         - Object was dropped not at target (fail)
         """
-        object_grasped = bool(info['is_object_grasped'])
+        object_grasped = bool(info["is_object_grasped"])
         self.has_grasped = object_grasped or self.has_grasped
 
-        object_distance = float(info['object_distance_from_target'])
+        object_distance = float(info["object_distance_from_target"])
         object_at_target = object_distance < self.distance_threshold
 
         success = object_at_target and not object_grasped
@@ -142,18 +140,17 @@ class Navigation(Task):
         self,
         scene: str,
         task: str,
-        robot_type: str,
-        binary_path: str,
+        robot: str,
         render_mode: str,
         namespace: str = "",
-        timeout: float = 10.0,
+        timeout: float = 30.0,
     ) -> None:
-        super().__init__(scene, task, robot_type, binary_path, render_mode, namespace, timeout)
+        super().__init__(scene, task, robot, render_mode, namespace, timeout)
 
         self.target_tolerance = 0.1
 
-        self.luckyrobots.start(scene, task, robot_type, binary_path, render_mode)
-        self.luckyrobots.wait_for_world_client(timeout=self.timeout)
+        self.luckyrobots.start(scene=scene, task=task, robot=robot, render_mode=render_mode)
+        self.luckyrobots.wait_for_world_client()
 
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
@@ -172,10 +169,10 @@ class Navigation(Task):
         - Robot reaches target (success)
         - Robot collides with obstacle (fail)
         """
-        robot_distance = float(info['object_distance_from_target'])
-        collision = bool(info['collision'])
+        robot_distance = float(info["robot_distance_from_target"])
+        has_collided = bool(info["has_collided"])
 
-        success = robot_distance < self.target_tolerance and not collision
-        fail = collision
+        success = robot_distance < self.target_tolerance and not has_collided
+        fail = has_collided
 
         return success or fail

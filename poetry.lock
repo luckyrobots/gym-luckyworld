@@ -900,13 +900,13 @@ files = [
 
 [[package]]
 name = "luckyrobots"
-version = "0.1.47"
+version = "0.1.56"
 description = "Robotics-AI Training in Hyperrealistic Game Environments"
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "luckyrobots-0.1.47-py3-none-any.whl", hash = "sha256:c6f1fd1c8533821f77647c2bc4cc42c5483518482001a763d037180b15bead9c"},
-    {file = "luckyrobots-0.1.47.tar.gz", hash = "sha256:a1bcf53ea57cd1318ebdd1eed9505bf6aa772692e9f8e82bc528ef8290ea7310"},
+    {file = "luckyrobots-0.1.56-py3-none-any.whl", hash = "sha256:85e3a5a80fba81e55350d9bfa56ab21323f9337702e78bafe9c685a439f7baa2"},
+    {file = "luckyrobots-0.1.56.tar.gz", hash = "sha256:45f73e01958781b34e1aa2754d46c1eafbc6ac556b8e99f02bfa7c01f0bf5768"},
 ]
 
 [package.dependencies]
@@ -919,6 +919,7 @@ opencv-python = "*"
 packaging = "*"
 psutil = "*"
 pydantic = "*"
+pyyaml = "*"
 requests = "*"
 tqdm = "*"
 ultralytics = "*"
@@ -2796,4 +2797,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.13"
-content-hash = "da6fd17299f996613e1f9cd9d8dd4e922cddb80a1812f1b21cd925afda8d77ef"
+content-hash = "9d9a235577fb648de5e5c5bca3c9c712c213876e63fcbd7f3547eea0039524d0"
