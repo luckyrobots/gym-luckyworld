@@ -3,7 +3,7 @@ from gymnasium.envs.registration import register
 register(
     id="gym_luckyworld/LuckyWorld-PickandPlace-v0",
     entry_point="gym_luckyworld.env:LuckyWorld",
-    max_episode_steps=25,
+    max_episode_steps=300,
     nondeterministic=True,
     kwargs={
         "scene": "kitchen",

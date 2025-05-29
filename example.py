@@ -8,7 +8,7 @@ env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")
 observation, info = env.reset()
 frames = []
 
-for _ in range(20):
+for _ in range(1000):
     action = env.action_space.sample()
     observation, reward, terminated, truncated, info = env.step(action)
     image = env.render()
