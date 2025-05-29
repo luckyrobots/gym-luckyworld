@@ -19,5 +19,6 @@ for _ in range(20):
         observation, info = env.reset()
 
 env.close()
+
 if env.render_mode == "rgb_array":  
     imageio.mimsave("example.mp4", np.stack(frames), fps=10)

@@ -6,10 +6,10 @@ A gym environment for the Lucky World simulator
 
 ## Installation
 
-Create a virtual environment with Python 3.10 and activate it, e.g. with [`miniconda`](https://docs.anaconda.com/free/miniconda/index.html):
+Create a virtual environment with Python 3.13 and activate it, e.g. with [`miniconda`](https://docs.anaconda.com/free/miniconda/index.html):
 
 ```bash
-conda create -y -n luckyworld python=3.9 && conda activate luckyworld
+conda create -y -n luckyworld python=3.13 && conda activate luckyworld
 ```
 
 Install gym-luckyworld:
@@ -21,13 +21,13 @@ pip install gym-luckyworld
 ## Quickstart
 
 ```python
-# example.py
 import imageio
-import gymnasium as gym
 import numpy as np
-import gym_luckyworld
+import gymnasium as gym
+import gym_luckyworld # noqa: F401
 
-env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0-v0")
+env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")
+
 observation, info = env.reset()
 frames = []
 
@@ -35,127 +35,147 @@ for _ in range(1000):
     action = env.action_space.sample()
     observation, reward, terminated, truncated, info = env.step(action)
     image = env.render()
-    frames.append(image)
+    if env.render_mode == "rgb_array":
+        frames.append(image)
 
     if terminated or truncated:
         observation, info = env.reset()
 
 env.close()
-imageio.mimsave("example.mp4", np.stack(frames), fps=25)
+
+if env.render_mode == "rgb_array":  
+    imageio.mimsave("example.mp4", np.stack(frames), fps=10)
 ```
 
 ## Description
 
-LuckyWorld environment.
+LuckyWorld environment for imitation learning with robotic manipulation tasks.
 
 Two tasks are available:
 
-- TransferCubeTask: The right arm needs to first pick up the red cube lying on the table, then place it inside the gripper of the other arm.
-- InsertionTask: The left and right arms need to pick up the socket and peg respectively, and then insert in mid-air so the peg touches the “pins” inside the socket.
+- **PickandPlace**: The SO100 robot arm needs to pick up objects and place them at target locations.
+- **Navigation**: Robot navigation tasks for mobile platforms.
+
+### Robots
+
+- **SO100**: 6-DOF robotic arm with the following actuators:
+  - `shoulder_pan`: Shoulder rotation (-2.2 to 2.2 rad)
+  - `shoulder_lift`: Shoulder elevation (-3.14 to 0.2 rad)
+  - `elbow_flex`: Elbow joint (0.0 to 3.14 rad)
+  - `wrist_flex`: Wrist flexion (-2.0 to 1.8 rad)
+  - `wrist_roll`: Wrist rotation (-3.14 to 3.14 rad)
+  - `gripper`: Gripper position (-0.2 to 2.0)
 
 ### Action Space
 
-The action space consists of continuous values for each arm and gripper, resulting in a 14-dimensional vector:
+The action space consists of continuous values for the robot's joint positions, resulting in a 6-dimensional vector for SO100:
 
-- Six values for each arm's joint positions (absolute values).
-- One value for each gripper's position, normalized between 0 (closed) and 1 (open).
+- Six values for the arm's joint positions (absolute values within joint limits).
 
 ### Observation Space
 
 Observations are provided as a dictionary with the following keys:
 
-- `qpos` and `qvel`: Position and velocity data for the arms and grippers.
-- `images`: Camera feeds from different angles.
-- `env_state`: Additional environment state information, such as positions of the peg and sockets.
+- `agent_pos`: Current joint positions of the robot arm (6D vector for SO100).
+- `pixels`: RGB camera feed (480x640x3) from the robot's perspective.
 
 ### Rewards
 
-- TransferCubeTask:
-  - 1 point for holding the box with the right gripper.
-  - 2 points if the box is lifted with the right gripper.
-  - 3 points for transferring the box to the left gripper.
-  - 4 points for a successful transfer without touching the table.
-- InsertionTask:
-  - 1 point for touching both the peg and a socket with the grippers.
-  - 2 points for grasping both without dropping them.
-  - 3 points if the peg is aligned with and touching the socket.
-  - 4 points for successful insertion of the peg into the socket.
+**Important**: This environment is designed for **imitation learning**. All rewards are set to `0.0` by default.
 
-### Success Criteria
+For reinforcement learning applications, you must implement custom reward functions by:
+1. Subclassing the task classes (`PickandPlace`, `Navigation`)
+2. Overriding the `get_reward()` method with your domain-specific reward logic
 
-Achieving the maximum reward of 4 points.
+### Termination Criteria
+
+Episodes terminate based on task-specific conditions:
+
+- **PickandPlace**: 
+  - Success: Object is placed at target location
+  - Failure: Object is dropped away from target
+- **Navigation**:
+  - Success: Robot reaches target location
+  - Failure: Robot collides with obstacles
 
 ### Starting State
 
-The arms and the items (block, peg, socket) start at a random position and angle.
+The robot and environment objects start at randomized positions within predefined bounds.
 
 ### Arguments
 
 ```python
 >>> import gymnasium as gym
 >>> import gym_luckyworld
->>> env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0-v0", obs_type="pixels", render_mode="rgb_array")
+>>> env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0", obs_type="pixels_agent_pos", render_mode="rgb_array")
 >>> env
 <TimeLimit<OrderEnforcing<PassiveEnvChecker<LuckyWorldEnv<gym_luckyworld/LuckyWorld-PickandPlace-v0>>>>>
 ```
 
-* `obs_type`: (str) The observation type. Can be either `pixels` or `pixels_agent_pos`. Default is `pixels`.
-* `render_mode`: (str) The rendering mode. Only `rgb_array` is supported for now.
-* `observation_width`: (int) The width of the observed image. Default is `640`.
-* `observation_height`: (int) The height of the observed image. Default is `480`.
-* `visualization_width`: (int) The width of the visualized image. Default is `640`.
-* `visualization_height`: (int) The height of the visualized image. Default is `480`.
+* `obs_type`: (str) The observation type. Currently supports `pixels_agent_pos` (camera + joint positions). Default is `pixels_agent_pos`.
+* `render_mode`: (str) The rendering mode. Can be `human` (OpenCV windows) or `rgb_array` (numpy arrays). Default is `human`.
+* `scene`: (str) The scene to load. Default is `kitchen`.
+* `robot_type`: (str) The robot type. Currently supports `so100`. Default is `so100`.
+* `timeout`: (float) Maximum episode duration in seconds. Default is `30.0`.
 
-### 🔧 GPU Rendering (EGL)
-
-Rendering on the GPU can be significantly faster than CPU. However, MuJoCo may silently fall back to CPU rendering if EGL is not properly configured. To force GPU rendering and avoid fallback issues, you can use the following snippet:
+### Example Usage for Imitation Learning
 
 ```python
-import distutils.util
-import os
-import subprocess
+import gymnasium as gym
+import gym_luckyworld
 
-if subprocess.run('nvidia-smi').returncode:
-  raise RuntimeError(
-      'Cannot communicate with GPU. '
-      'Make sure you are using a GPU runtime. '
-      'Go to the Runtime menu and select Choose runtime type.'
-  )
+# Create environment
+env = gym.make(
+    "gym_luckyworld/LuckyWorld-PickandPlace-v0",
+    obs_type="pixels_agent_pos",
+    render_mode="rgb_array"
+)
 
-# Add an ICD config so that glvnd can pick up the Nvidia EGL driver.
-# This is usually installed as part of an Nvidia driver package, but the
-# kernel doesn't install its driver via APT, and as a result the ICD is missing.
-# (https://github.com/NVIDIA/libglvnd/blob/master/src/EGL/icd_enumeration.md)
-NVIDIA_ICD_CONFIG_PATH = '/usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-if not os.path.exists(NVIDIA_ICD_CONFIG_PATH):
-  with open(NVIDIA_ICD_CONFIG_PATH, 'w') as f:
-    f.write("""{
-    "file_format_version" : "1.0.0",
-    "ICD" : {
-        "library_path" : "libEGL_nvidia.so.0"
-    }
-}
-""")
+# Collect demonstration data
+observations = []
+actions = []
 
-# Check if installation was successful.
-try:
-  print('Checking that the installation succeeded:')
-  import mujoco
-  from mujoco import rollout
-  mujoco.MjModel.from_xml_string('<mujoco/>')
-except Exception as e:
-  raise e from RuntimeError(
-      'Something went wrong during installation. Check the shell output above '
-      'for more information.\n'
-      'If using a hosted Colab runtime, make sure you enable GPU acceleration '
-      'by going to the Runtime menu and selecting "Choose runtime type".')
+obs, info = env.reset()
+for step in range(100):
+    # Your demonstration policy here
+    action = your_policy(obs)
+    
+    observations.append(obs)
+    actions.append(action)
+    
+    obs, reward, terminated, truncated, info = env.step(action)
+    
+    if terminated or truncated:
+        obs, info = env.reset()
 
-print('Installation successful.')
+env.close()
 
-# Tell XLA to use Triton GEMM, this improves steps/sec by ~30% on some GPUs
-xla_flags = os.environ.get('XLA_FLAGS', '')
-xla_flags += ' --xla_gpu_triton_gemm_any=True'
-os.environ['XLA_FLAGS'] = xla_flags
+# Use observations and actions for imitation learning
+# (e.g., with ACT, BC, IQL, etc.)
+```
+
+### Custom Rewards for RL
+
+If you want to use this environment for reinforcement learning, implement custom rewards:
+
+```python
+from gym_luckyworld.task import PickandPlace
+
+class RewardedPickandPlace(PickandPlace):
+    def get_reward(self, observation, info):
+        # Implement your reward logic here
+        object_distance = info.get("object_distance_from_target", float('inf'))
+        reward = -object_distance  # Negative distance as reward
+        
+        # Add success bonus
+        if object_distance < self.distance_threshold:
+            reward += 100.0
+            
+        return reward
+
+# Use your custom task
+env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")
+env.task = RewardedPickandPlace("kitchen", "pickandplace", "so100", "human")
 ```
 
 ## Contribute
@@ -181,4 +201,4 @@ pre-commit
 
 ## Acknowledgment
 
-gym-luckyworld is adapted from [gym-aloha](https://github.com/huggingface/gym-aloha/tree/main)
+gym-luckyworld is adapted from [gym-aloha](https://github.com/huggingface/gym-aloha/tree/main) and built on top of the [LuckyRobots](https://github.com/luckyrobots/luckyrobots) simulation platform.
