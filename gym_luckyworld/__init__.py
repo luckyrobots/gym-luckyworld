@@ -24,6 +24,6 @@ register(
         "task": "navigation",
         "robot_type": "stretch_v1",
         "obs_type": "pixels_agent_pos",
-        "render_mode": "human",
+        "render_mode": "rgb_array",
     },
 )
