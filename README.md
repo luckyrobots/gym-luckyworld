@@ -2,7 +2,7 @@
 
 A gym environment for the Lucky World simulator
 
-<img src="http://remicadene.com/assets/gif/aloha_act.gif" width="50%" alt="ACT policy on ALOHA env"/>
+<img src="https://github.com/luckyrobots/gym-luckyworld/blob/main/assets/gif_luckyrobot.gif" width="50%" alt="ACT policy on ALOHA env"/>
 
 ## Installation
 
