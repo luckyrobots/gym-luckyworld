@@ -6,11 +6,12 @@ register(
     max_episode_steps=300,
     nondeterministic=True,
     kwargs={
-        "scene": "kitchen",
+        "scene": "ArmLevel",
         "task": "pickandplace",
         "robot_type": "so100",
         "obs_type": "pixels_agent_pos",
         "render_mode": "rgb_array",
+        "game_path": None,
     },
 )
 
@@ -25,5 +26,6 @@ register(
         "robot_type": "stretch_v1",
         "obs_type": "pixels_agent_pos",
         "render_mode": "rgb_array",
+        "game_path": None,
     },
 )

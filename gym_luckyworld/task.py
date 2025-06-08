@@ -92,6 +92,7 @@ class PickandPlace(Task):
         task: str,
         robot: str,
         render_mode: str,
+        game_path: str,
         namespace: str = "",
         timeout: float = 30,
         distance_threshold: float = 0.05,
@@ -101,7 +102,8 @@ class PickandPlace(Task):
         self.has_grasped = None
         self.distance_threshold = distance_threshold
 
-        self.luckyrobots.start(scene=scene, task=task, robot=robot, render_mode=render_mode)
+        # TODO: Add headless mode for rgb_array render_mode
+        self.luckyrobots.start(scene=scene, task=task, robot=robot, game_path=game_path)
         self.luckyrobots.wait_for_world_client()
 
     def reset(
@@ -142,6 +144,7 @@ class Navigation(Task):
         task: str,
         robot: str,
         render_mode: str,
+        game_path: str,
         namespace: str = "",
         timeout: float = 30.0,
     ) -> None:
@@ -149,7 +152,8 @@ class Navigation(Task):
 
         self.target_tolerance = 0.1
 
-        self.luckyrobots.start(scene=scene, task=task, robot=robot, render_mode=render_mode)
+        # TODO: Add headless mode for rgb_array render_mode
+        self.luckyrobots.start(scene=scene, task=task, robot=robot, game_path=game_path)
         self.luckyrobots.wait_for_world_client()
 
     def reset(

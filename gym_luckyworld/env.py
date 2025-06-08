@@ -23,6 +23,7 @@ class LuckyWorld(gym.Env):
         obs_type: str,
         timeout: float = 30.0,
         render_mode: str = "human",
+        game_path: str | None = None,
     ):
         super().__init__()
 
@@ -31,17 +32,17 @@ class LuckyWorld(gym.Env):
         self.timeout = timeout
         self.obs_type = obs_type
         self.render_mode = render_mode
-
+        self.game_path = game_path  
         self.latest_observation = None
 
-        self._setup_task(scene, task, robot_type, render_mode)
+        self._setup_task(scene, task, robot_type, render_mode, game_path)
         self._setup_spaces(obs_type)
 
-    def _setup_task(self, scene: str, task: str, robot_type: str, render_mode: str) -> None:
+    def _setup_task(self, scene: str, task: str, robot_type: str, render_mode: str, game_path: str) -> None:
         if task == "pickandplace":
-            self.task = PickandPlace(scene, task, robot_type, render_mode)
+            self.task = PickandPlace(scene, task, robot_type, render_mode, game_path)
         elif task == "navigation":
-            self.task = Navigation(scene, task, robot_type, render_mode)
+            self.task = Navigation(scene, task, robot_type, render_mode, game_path)
         else:
             raise ValueError(f"Invalid task type: {task}")
 
