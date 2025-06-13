@@ -3,8 +3,7 @@ import numpy as np
 import gymnasium as gym
 import gym_luckyworld # noqa: F401
 
-game_path = "/mnt/c/Users/ethan/OneDrive/Documents/LuckyWorld/Build/Windows"
-env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0", game_path=game_path)
+env = gym.make("gym_luckyworld/LuckyWorld-PickandPlace-v0")
 
 observation, info = env.reset()
 frames = []

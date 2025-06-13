@@ -19,39 +19,38 @@ class LuckyWorld(gym.Env):
         self,
         scene: str,
         task: str,
-        robot_type: str,
+        robot: str,
         obs_type: str,
+        namespace: str = "",
         timeout: float = 30.0,
         render_mode: str = "human",
-        game_path: str | None = None,
     ):
         super().__init__()
 
         self.task = task
-        self.robot_type = robot_type
+        self.robot = robot
         self.timeout = timeout
         self.obs_type = obs_type
         self.render_mode = render_mode
-        self.game_path = game_path  
         self.latest_observation = None
 
-        self._setup_task(scene, task, robot_type, render_mode, game_path)
+        self._setup_task(scene, task, robot, render_mode, namespace)
         self._setup_spaces(obs_type)
 
-    def _setup_task(self, scene: str, task: str, robot_type: str, render_mode: str, game_path: str) -> None:
+    def _setup_task(self, scene: str, task: str, robot: str, render_mode: str, namespace: str) -> None:
         if task == "pickandplace":
-            self.task = PickandPlace(scene, task, robot_type, render_mode, game_path)
+            self.task = PickandPlace(scene, task, robot, render_mode, namespace)
         elif task == "navigation":
-            self.task = Navigation(scene, task, robot_type, render_mode, game_path)
+            self.task = Navigation(scene, task, robot, render_mode, namespace)
         else:
             raise ValueError(f"Invalid task type: {task}")
 
     def _setup_spaces(self, obs_type: str) -> None:
         # Set up action space (same for all observation types)
         robot_configs = self.task.luckyrobots.get_robot_config()
-        if self.robot_type not in robot_configs:
-            raise ValueError(f"Invalid robot type: {self.robot_type}")
-        robot_config = robot_configs[self.robot_type]
+        if self.robot not in robot_configs:
+            raise ValueError(f"Invalid robot type: {self.robot}")
+        robot_config = robot_configs[self.robot]
         action_limits = robot_config["action_space"]["actuator_limits"]
         action_dim = len(action_limits)
         self.action_space = spaces.Box(

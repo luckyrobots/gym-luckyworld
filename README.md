@@ -115,7 +115,7 @@ The robot and environment objects start at randomized positions within predefine
 * `obs_type`: (str) The observation type. Currently supports `pixels_agent_pos` (camera + joint positions). Default is `pixels_agent_pos`.
 * `render_mode`: (str) The rendering mode. Can be `human` (OpenCV windows) or `rgb_array` (numpy arrays). Default is `human`.
 * `scene`: (str) The scene to load. Default is `kitchen`.
-* `robot_type`: (str) The robot type. Currently supports `so100`. Default is `so100`.
+* `robot`: (str) The robot type. Currently supports `so100`. Default is `so100`.
 * `timeout`: (float) Maximum episode duration in seconds. Default is `30.0`.
 
 ### Example Usage for Imitation Learning

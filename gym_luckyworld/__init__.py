@@ -8,10 +8,10 @@ register(
     kwargs={
         "scene": "ArmLevel",
         "task": "pickandplace",
-        "robot_type": "so100",
+        "robot": "so100",
         "obs_type": "pixels_agent_pos",
         "render_mode": "rgb_array",
-        "game_path": None,
+        # "game_path": None,
     },
 )
 
@@ -23,9 +23,9 @@ register(
     kwargs={
         "scene": "loft",
         "task": "navigation",
-        "robot_type": "stretch_v1",
+        "robot": "stretch_v1",
         "obs_type": "pixels_agent_pos",
         "render_mode": "rgb_array",
-        "game_path": None,
+        # "game_path": None,
     },
 )

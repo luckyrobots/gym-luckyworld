@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gym-luckyworld"
-version = "0.0.2"
+version = "0.0.3"
 description = "A gym environment for LuckyWorld"
 authors = [
     "Ethan M. Clark <eclark715@gmail.com>"
