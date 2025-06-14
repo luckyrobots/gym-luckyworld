@@ -65,43 +65,65 @@ class LuckyWorld(gym.Env):
         obs_limits = robot_config["observation_space"]["actuator_limits"]
 
         if obs_type == "pixels_agent_pos":
-            # Camera image + agent position + target position
-            self.observation_space = spaces.Dict(
-                {
-                    "pixels": spaces.Box(
-                        low=0,
-                        high=255,
-                        shape=(480, 640, 3),
-                        dtype=np.uint8,
-                    ),
+            # Nested structure to match training
+            self.observation_space = spaces.Dict({
+                "observation": spaces.Dict({
+                    "pixels": spaces.Dict({
+                        "Camera_1": spaces.Box(
+                            low=0,
+                            high=255,
+                            shape=(480, 640, 3),
+                            dtype=np.uint8,
+                        ),
+                        "Camera_2": spaces.Box(
+                            low=0,
+                            high=255,
+                            shape=(480, 640, 3),
+                            dtype=np.uint8,
+                        ),
+                    }),
                     "agent_pos": spaces.Box(
                         low=np.array([limit["lower"] for limit in obs_limits], dtype=np.float32),
                         high=np.array([limit["upper"] for limit in obs_limits], dtype=np.float32),
                         shape=(obs_dim,),
                         dtype=np.float32,
                     ),
-                }
-            )
+                }),
+            })
         else:
             raise ValueError(f"Unknown observation type: {obs_type}")
 
     def _convert_observation(self, observation: ObservationModel) -> dict:
-        obs_dict = {}
+        obs_dict = {
+            "observation": {
+                "pixels": {
+                    "Camera_1": None,
+                    "Camera_2": None
+                },
+                "agent_pos": None,
+            }
+        }
 
-        # Handle agent position - explicitly convert to float32
+        # Handle agent position
         if hasattr(observation, "observation_state") and observation.observation_state:
             agent_pos_values = list(observation.observation_state.values())
-            # Force conversion to float32 after JSON deserialization
-            obs_dict["agent_pos"] = np.array(agent_pos_values, dtype=np.float32)
+            obs_dict["observation"]["agent_pos"] = np.array(agent_pos_values, dtype=np.float32)
 
+        # Handle cameras
         if hasattr(observation, "observation_cameras") and observation.observation_cameras:
-            for camera in observation.observation_cameras:
+            for i, camera in enumerate(observation.observation_cameras):
                 if camera.image_data is not None:
                     image = camera.image_data
                     if isinstance(image, np.ndarray):
-                        # Ensure uint8 for images
-                        obs_dict["pixels"] = image.astype(np.uint8)
-                        break
+                        # Map each camera to correct name
+                        if i == 0:
+                            camera_key = "Camera_1"
+                        elif i == 1:
+                            camera_key = "Camera_2"
+                        else:
+                            continue 
+
+                        obs_dict["observation"]["pixels"][camera_key] = image.astype(np.uint8)
 
         return obs_dict
 
