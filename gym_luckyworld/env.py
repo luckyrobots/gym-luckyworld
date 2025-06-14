@@ -67,47 +67,43 @@ class LuckyWorld(gym.Env):
         if obs_type == "pixels_agent_pos":
             # Nested structure to match training
             self.observation_space = spaces.Dict({
-                "observation": spaces.Dict({
-                    "pixels": spaces.Dict({
-                        "Camera_1": spaces.Box(
-                            low=0,
-                            high=255,
-                            shape=(480, 640, 3),
-                            dtype=np.uint8,
-                        ),
-                        "Camera_2": spaces.Box(
-                            low=0,
-                            high=255,
-                            shape=(480, 640, 3),
-                            dtype=np.uint8,
-                        ),
-                    }),
-                    "agent_pos": spaces.Box(
-                        low=np.array([limit["lower"] for limit in obs_limits], dtype=np.float32),
-                        high=np.array([limit["upper"] for limit in obs_limits], dtype=np.float32),
-                        shape=(obs_dim,),
-                        dtype=np.float32,
+                "pixels": spaces.Dict({
+                    "Camera_1": spaces.Box(
+                        low=0,
+                        high=255,
+                        shape=(480, 640, 3),
+                        dtype=np.uint8,
+                    ),
+                    "Camera_2": spaces.Box(
+                        low=0,
+                        high=255,
+                        shape=(480, 640, 3),
+                        dtype=np.uint8,
                     ),
                 }),
+                "agent_pos": spaces.Box(
+                    low=np.array([limit["lower"] for limit in obs_limits], dtype=np.float32),
+                    high=np.array([limit["upper"] for limit in obs_limits], dtype=np.float32),
+                    shape=(obs_dim,),
+                    dtype=np.float32,
+                ),
             })
         else:
             raise ValueError(f"Unknown observation type: {obs_type}")
 
     def _convert_observation(self, observation: ObservationModel) -> dict:
         obs_dict = {
-            "observation": {
-                "pixels": {
-                    "Camera_1": None,
-                    "Camera_2": None
-                },
-                "agent_pos": None,
-            }
+            "pixels": {
+                "Camera_1": None,
+                "Camera_2": None
+            },
+            "agent_pos": None,
         }
 
         # Handle agent position
         if hasattr(observation, "observation_state") and observation.observation_state:
             agent_pos_values = list(observation.observation_state.values())
-            obs_dict["observation"]["agent_pos"] = np.array(agent_pos_values, dtype=np.float32)
+            obs_dict["agent_pos"] = np.array(agent_pos_values, dtype=np.float32)
 
         # Handle cameras
         if hasattr(observation, "observation_cameras") and observation.observation_cameras:
@@ -123,7 +119,7 @@ class LuckyWorld(gym.Env):
                         else:
                             continue 
 
-                        obs_dict["observation"]["pixels"][camera_key] = image.astype(np.uint8)
+                        obs_dict["pixels"][camera_key] = image.astype(np.uint8)
 
         return obs_dict
 
