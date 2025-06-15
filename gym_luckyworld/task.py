@@ -54,7 +54,7 @@ class Task(abc.ABC, Node):
     def step(self, actuator_values: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, any]]:
         logger.info(f"Stepping environment with actuator values: {actuator_values}")
 
-        request = Step.Request(actuator_values=actuator_values)
+        request = Step.Request(actuator_values=actuator_values.tolist())
         future = run_coroutine(self.step_client.call(request, timeout=self.timeout))
         response = future.result()
 
