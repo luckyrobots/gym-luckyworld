@@ -94,16 +94,23 @@ class LuckyWorld(gym.Env):
     def _convert_observation(self, observation: ObservationModel) -> dict:
         obs_dict = {
             "pixels": {
-                "Camera_1": None,
-                "Camera_2": None
+                "Camera_1": np.zeros((480, 640, 3), dtype=np.uint8),
+                "Camera_2": np.zeros((480, 640, 3), dtype=np.uint8)
             },
-            "agent_pos": None,
+            "agent_pos": np.zeros(self.observation_space["agent_pos"].shape, dtype=np.float32),
         }
 
         # Handle agent position
         if hasattr(observation, "observation_state") and observation.observation_state:
             agent_pos_values = list(observation.observation_state.values())
-            obs_dict["agent_pos"] = np.array(agent_pos_values, dtype=np.float32)
+            agent_pos = np.array(agent_pos_values, dtype=np.float32)
+            # Ensure values are within bounds
+            agent_pos = np.clip(
+                agent_pos,
+                self.observation_space["agent_pos"].low,
+                self.observation_space["agent_pos"].high
+            )
+            obs_dict["agent_pos"] = agent_pos
 
         # Handle cameras
         if hasattr(observation, "observation_cameras") and observation.observation_cameras:
@@ -119,7 +126,12 @@ class LuckyWorld(gym.Env):
                         else:
                             continue 
 
-                        obs_dict["pixels"][camera_key] = image.astype(np.uint8)
+                        # Ensure image is in correct shape and type
+                        if image.shape != (480, 640, 3):
+                            image = cv2.resize(image, (640, 480))
+                        if image.dtype != np.uint8:
+                            image = image.astype(np.uint8)
+                        obs_dict["pixels"][camera_key] = image
 
         return obs_dict
 
