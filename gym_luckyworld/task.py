@@ -117,7 +117,6 @@ class PickandPlace(Task):
     def get_reward(self, observation: np.ndarray, info: dict[str, any]) -> float:
         return 0.0
 
-    # TODO: Improve the distance threshold once the information dictionary is refined
     def is_terminated(self, observation: np.ndarray, info: dict[str, any]) -> bool:
         """
         Episode terminates if:
@@ -132,6 +131,8 @@ class PickandPlace(Task):
 
         success = object_at_target and not object_grasped
         fail = self.has_grasped and not object_grasped and not object_at_target
+
+        info["is_success"] = success
 
         return success or fail
 
@@ -176,5 +177,7 @@ class Navigation(Task):
 
         success = robot_distance < self.target_tolerance and not has_collided
         fail = has_collided
+
+        info["is_success"] = success
 
         return success or fail
