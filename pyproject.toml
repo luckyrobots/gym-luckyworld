@@ -20,7 +20,7 @@ packages = [{include = "gym_luckyworld"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-luckyrobots = ">=0.1.64"
+luckyrobots = ">=0.1.65"
 gymnasium = ">=0.29.1"
 imageio = {extras = ["ffmpeg"], version = ">=2.34.0"}
 omegaconf = ">=2.3.0"
