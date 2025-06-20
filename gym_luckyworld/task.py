@@ -35,8 +35,6 @@ class Task(abc.ABC, Node):
     def reset(
         self, seed: int | None = None, options: dict[str, any] | None = None
     ) -> tuple[np.ndarray, dict[str, any]]:
-        logger.info(f"Resetting environment with seed: {seed} and options: {options}")
-
         request = Reset.Request(seed=seed, options=options)
         future = run_coroutine(self.reset_client.call(request, timeout=self.timeout))
         response = future.result()
@@ -52,8 +50,6 @@ class Task(abc.ABC, Node):
         return raw_observation, info
 
     def step(self, actuator_values: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, any]]:
-        logger.info(f"Stepping environment with actuator values: {actuator_values}")
-
         request = Step.Request(actuator_values=actuator_values.tolist())
         future = run_coroutine(self.step_client.call(request, timeout=self.timeout))
         response = future.result()
