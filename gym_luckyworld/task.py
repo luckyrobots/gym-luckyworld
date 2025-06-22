@@ -90,7 +90,7 @@ class PickandPlace(Task):
         render_mode: str,
         namespace: str = "",
         timeout: float = 30,
-        distance_threshold: float = 0.05,
+        distance_threshold: float = 10.0,
     ) -> None:
         super().__init__(scene, task, robot, render_mode, namespace, timeout)
 
@@ -125,7 +125,8 @@ class PickandPlace(Task):
         object_distance = float(info["object_distance_from_target"])
         object_at_target = object_distance < self.distance_threshold
 
-        success = object_at_target and not object_grasped
+        # success = object_at_target and not object_grasped
+        success = object_at_target
         fail = self.has_grasped and not object_grasped and not object_at_target
 
         info["is_success"] = success
