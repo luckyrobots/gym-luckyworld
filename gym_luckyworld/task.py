@@ -77,9 +77,6 @@ class Task(abc.ABC, Node):
     def is_terminated(self, observation: np.ndarray, info: dict[str, any]) -> bool:
         raise NotImplementedError
 
-    def shutdown(self) -> None:
-        self.luckyrobots.shutdown()
-
 
 class PickandPlace(Task):
     def __init__(

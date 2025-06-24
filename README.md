@@ -43,7 +43,7 @@ for _ in range(1000):
 
 env.close()
 
-if env.render_mode == "rgb_array":  
+if env.render_mode == "rgb_array":
     imageio.mimsave("example.mp4", np.stack(frames), fps=10)
 ```
 
@@ -91,7 +91,7 @@ For reinforcement learning applications, you must implement custom reward functi
 
 Episodes terminate based on task-specific conditions:
 
-- **PickandPlace**: 
+- **PickandPlace**:
   - Success: Object is placed at target location
   - Failure: Object is dropped away from target
 - **Navigation**:
@@ -139,12 +139,12 @@ obs, info = env.reset()
 for step in range(100):
     # Your demonstration policy here
     action = your_policy(obs)
-    
+
     observations.append(obs)
     actions.append(action)
-    
+
     obs, reward, terminated, truncated, info = env.step(action)
-    
+
     if terminated or truncated:
         obs, info = env.reset()
 
@@ -166,11 +166,11 @@ class RewardedPickandPlace(PickandPlace):
         # Implement your reward logic here
         object_distance = info.get("object_distance_from_target", float('inf'))
         reward = -object_distance  # Negative distance as reward
-        
+
         # Add success bonus
         if object_distance < self.distance_threshold:
             reward += 100.0
-            
+
         return reward
 
 # Use your custom task

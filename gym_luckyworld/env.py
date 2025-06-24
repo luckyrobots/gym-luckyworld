@@ -66,28 +66,32 @@ class LuckyWorld(gym.Env):
 
         if obs_type == "pixels_agent_pos":
             # Nested structure to match training
-            self.observation_space = spaces.Dict({
-                "pixels": spaces.Dict({
-                    "Camera_1": spaces.Box(
-                        low=0,
-                        high=255,
-                        shape=(480, 640, 3),
-                        dtype=np.uint8,
+            self.observation_space = spaces.Dict(
+                {
+                    "pixels": spaces.Dict(
+                        {
+                            "Camera_1": spaces.Box(
+                                low=0,
+                                high=255,
+                                shape=(480, 640, 3),
+                                dtype=np.uint8,
+                            ),
+                            "Camera_2": spaces.Box(
+                                low=0,
+                                high=255,
+                                shape=(480, 640, 3),
+                                dtype=np.uint8,
+                            ),
+                        }
                     ),
-                    "Camera_2": spaces.Box(
-                        low=0,
-                        high=255,
-                        shape=(480, 640, 3),
-                        dtype=np.uint8,
+                    "agent_pos": spaces.Box(
+                        low=np.array([limit["lower"] for limit in obs_limits], dtype=np.float32),
+                        high=np.array([limit["upper"] for limit in obs_limits], dtype=np.float32),
+                        shape=(obs_dim,),
+                        dtype=np.float32,
                     ),
-                }),
-                "agent_pos": spaces.Box(
-                    low=np.array([limit["lower"] for limit in obs_limits], dtype=np.float32),
-                    high=np.array([limit["upper"] for limit in obs_limits], dtype=np.float32),
-                    shape=(obs_dim,),
-                    dtype=np.float32,
-                ),
-            })
+                }
+            )
         else:
             raise ValueError(f"Unknown observation type: {obs_type}")
 
@@ -95,7 +99,7 @@ class LuckyWorld(gym.Env):
         obs_dict = {
             "pixels": {
                 "Camera_1": np.zeros((480, 640, 3), dtype=np.uint8),
-                "Camera_2": np.zeros((480, 640, 3), dtype=np.uint8)
+                "Camera_2": np.zeros((480, 640, 3), dtype=np.uint8),
             },
             "agent_pos": np.zeros(self.observation_space["agent_pos"].shape, dtype=np.float32),
         }
@@ -106,9 +110,7 @@ class LuckyWorld(gym.Env):
             agent_pos = np.array(agent_pos_values, dtype=np.float32)
             # Ensure values are within bounds
             agent_pos = np.clip(
-                agent_pos,
-                self.observation_space["agent_pos"].low,
-                self.observation_space["agent_pos"].high
+                agent_pos, self.observation_space["agent_pos"].low, self.observation_space["agent_pos"].high
             )
             obs_dict["agent_pos"] = agent_pos
 
@@ -124,7 +126,7 @@ class LuckyWorld(gym.Env):
                         elif i == 1:
                             camera_key = "Camera_2"
                         else:
-                            continue 
+                            continue
 
                         # Ensure image is in correct shape and type
                         if image.shape != (480, 640, 3):
@@ -175,7 +177,7 @@ class LuckyWorld(gym.Env):
                         # Convert BGR to RGB for external libraries
                         rgb_image = cv2.cvtColor(camera.image_data, cv2.COLOR_BGR2RGB)
                         camera_arrays.append(rgb_image)
-                
+
                 if camera_arrays:
                     if return_all_cameras:
                         # Return all cameras stacked (RGB format)
@@ -192,6 +194,6 @@ class LuckyWorld(gym.Env):
 
     def close(self) -> None:
         if self.task:
-            self.task.shutdown()
+            self.task.luckyrobots.shutdown()
 
         logger.info("Environment closed")
