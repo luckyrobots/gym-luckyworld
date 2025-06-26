@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gym-luckyworld"
-version = "0.0.15"
+version = "0.0.16"
 description = "A gym environment for LuckyWorld"
 authors = [
     "Ethan M. Clark <eclark715@gmail.com>"
@@ -20,7 +20,7 @@ packages = [{include = "gym_luckyworld"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-luckyrobots = ">=0.1.66"
+luckyrobots = ">=0.1.67"
 gymnasium = ">=0.29.1"
 imageio = {extras = ["ffmpeg"], version = ">=2.34.0"}
 omegaconf = ">=2.3.0"
