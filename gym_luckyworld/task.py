@@ -17,11 +17,11 @@ class Task(abc.ABC, Node):
         robot: str,
         render_mode: str,
         namespace: str = "",
-        timeout: float = 30,
+        request_timeout: float = 30,
     ) -> None:
         node_name = self.__class__.__name__.lower()
 
-        self.timeout = timeout
+        self.request_timeout = request_timeout
 
         Node.__init__(self, node_name, namespace, host="localhost", port=3000)
 
@@ -36,7 +36,7 @@ class Task(abc.ABC, Node):
         self, seed: int | None = None, options: dict[str, any] | None = None
     ) -> tuple[np.ndarray, dict[str, any]]:
         request = Reset.Request(seed=seed, options=options)
-        future = run_coroutine(self.reset_client.call(request, timeout=self.timeout))
+        future = run_coroutine(self.reset_client.call(request, timeout=self.request_timeout))
         response = future.result()
 
         if not response.success:
@@ -51,7 +51,7 @@ class Task(abc.ABC, Node):
 
     def step(self, actuator_values: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, any]]:
         request = Step.Request(actuator_values=actuator_values.tolist())
-        future = run_coroutine(self.step_client.call(request, timeout=self.timeout))
+        future = run_coroutine(self.step_client.call(request, timeout=self.request_timeout))
         response = future.result()
 
         if not response.success:
@@ -86,10 +86,10 @@ class PickandPlace(Task):
         robot: str,
         render_mode: str,
         namespace: str = "",
-        timeout: float = 30,
+        request_timeout: float = 30,
         distance_threshold: float = 10.0,
     ) -> None:
-        super().__init__(scene, task, robot, render_mode, namespace, timeout)
+        super().__init__(scene, task, robot, render_mode, namespace, request_timeout)
 
         self.has_grasped = None
         self.distance_threshold = distance_threshold
@@ -113,7 +113,7 @@ class PickandPlace(Task):
     def is_terminated(self, observation: np.ndarray, info: dict[str, any]) -> bool:
         """
         Episode terminates if:
-        - Object is placed at target and robot is at home (success)
+        - Object is placed at target and robot returned home (success)
         - Object was dropped not at target (fail)
         """
         object_grasped = bool(int(info["is_object_grasped"]))
@@ -129,6 +129,15 @@ class PickandPlace(Task):
 
         info["is_success"] = success
 
+        print({
+            "object_grasped": object_grasped,
+            "has_grasped": self.has_grasped,
+            "object_at_target": object_at_target,
+            "is_robot_home": is_robot_home,
+            "success": success,
+            "fail": fail,
+        })
+
         return success or fail
 
 
@@ -140,9 +149,9 @@ class Navigation(Task):
         robot: str,
         render_mode: str,
         namespace: str = "",
-        timeout: float = 30.0,
+        request_timeout: float = 30.0,
     ) -> None:
-        super().__init__(scene, task, robot, render_mode, namespace, timeout)
+        super().__init__(scene, task, robot, render_mode, namespace, request_timeout)
 
         self.target_tolerance = 0.1
 
