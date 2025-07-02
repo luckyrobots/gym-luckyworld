@@ -114,33 +114,19 @@ class PickandPlace(Task):
 
     def is_terminated(self, observation: np.ndarray, info: dict[str, any]) -> bool:
         """
-        Episode terminates if:
-        - Object is placed at target and robot returned home (success)
-        - Object was dropped not at target (fail)
+        Episode terminates successfully if:
+        - Object is placed at target and robot returned home
         """
-        object_grasped = bool(int(info["is_object_grasped"]))
-        self.has_grasped = object_grasped or self.has_grasped
-
         object_distance = float(info["object_distance_from_target"])
         object_at_target = object_distance < self.distance_threshold
 
         is_robot_home = bool(int(info["is_robot_home"]))
 
-        success = object_at_target and self.has_grasped and is_robot_home
-        fail = self.has_grasped and not object_grasped and not object_at_target
+        success = object_at_target and is_robot_home
 
         info["is_success"] = success
 
-        print({
-            "object_grasped": object_grasped,
-            "has_grasped": self.has_grasped,
-            "object_at_target": object_at_target,
-            "is_robot_home": is_robot_home,
-            "success": success,
-            "fail": fail,
-        })
-
-        return success or fail
+        return success
 
 
 class Navigation(Task):
