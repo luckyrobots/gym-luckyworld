@@ -20,6 +20,7 @@ class LuckyWorld(gym.Env):
         scene: str,
         task: str,
         robot: str,
+        debug: bool,
         obs_type: str,
         namespace: str = "",
         timeout: float = 30.0,
@@ -34,14 +35,14 @@ class LuckyWorld(gym.Env):
         self.render_mode = render_mode
         self.latest_observation = None
 
-        self._setup_task(scene, task, robot, render_mode, namespace)
+        self._setup_task(scene, task, robot, debug, render_mode, namespace)
         self._setup_spaces(obs_type)
 
-    def _setup_task(self, scene: str, task: str, robot: str, render_mode: str, namespace: str) -> None:
+    def _setup_task(self, scene: str, task: str, robot: str, debug: bool, render_mode: str, namespace: str) -> None:
         if task == "pickandplace":
-            self.task = PickandPlace(scene, task, robot, render_mode, namespace)
+            self.task = PickandPlace(scene, task, robot, debug, render_mode, namespace)
         elif task == "navigation":
-            self.task = Navigation(scene, task, robot, render_mode, namespace)
+            self.task = Navigation(scene, task, robot, debug, render_mode, namespace)
         else:
             raise ValueError(f"Invalid task type: {task}")
 

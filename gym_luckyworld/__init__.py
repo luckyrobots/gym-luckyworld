@@ -9,6 +9,7 @@ register(
         "scene": "ArmLevel",
         "task": "pickandplace",
         "robot": "so100",
+        "debug": True,
         "obs_type": "pixels_agent_pos",
         "render_mode": "rgb_array",
         # "game_path": None,

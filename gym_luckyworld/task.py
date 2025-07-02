@@ -17,6 +17,7 @@ class Task(abc.ABC, Node):
         robot: str,
         render_mode: str,
         namespace: str = "",
+        debug: bool = False,
         request_timeout: float = 30,
     ) -> None:
         node_name = self.__class__.__name__.lower()
@@ -84,18 +85,19 @@ class PickandPlace(Task):
         scene: str,
         task: str,
         robot: str,
+        debug: bool,
         render_mode: str,
         namespace: str = "",
         request_timeout: float = 30,
         distance_threshold: float = 10.0,
     ) -> None:
-        super().__init__(scene, task, robot, render_mode, namespace, request_timeout)
+        super().__init__(scene, task, robot, debug, render_mode, namespace, request_timeout)
 
         self.has_grasped = None
         self.distance_threshold = distance_threshold
 
         # TODO: Add headless mode for rgb_array render_mode
-        self.luckyrobots.start(scene=scene, robot=robot, task=task)
+        self.luckyrobots.start(scene=scene, robot=robot, task=task, debug=debug)
         self.luckyrobots.wait_for_world_client()
 
     def reset(
@@ -148,6 +150,7 @@ class Navigation(Task):
         task: str,
         robot: str,
         render_mode: str,
+        debug: bool = False,
         namespace: str = "",
         request_timeout: float = 30.0,
     ) -> None:
@@ -156,7 +159,7 @@ class Navigation(Task):
         self.target_tolerance = 0.1
 
         # TODO: Add headless mode for rgb_array render_mode
-        self.luckyrobots.start(scene=scene, task=task, robot=robot)
+        self.luckyrobots.start(scene=scene, task=task, robot=robot, debug=debug)
         self.luckyrobots.wait_for_world_client()
 
     def reset(
